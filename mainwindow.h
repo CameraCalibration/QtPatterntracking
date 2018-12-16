@@ -2,6 +2,10 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QMenu>
+#include <QMenuBar>
+#include <QContextMenuEvent>
+#include <QStatusBar>
 #include <QImage>
 #include <QWidget>
 #include <QLabel>
@@ -24,11 +28,37 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
 
+private:
+    void createActions();
+    void createMenus();
+
+public:
 signals:
 
 public slots:
 
+private slots:
+    void loadVideo();
+    void startProcess();
+    void stopProcess();
+
+protected:
+#ifndef QT_NO_CONTEXTMENU
+    void contextMenuEvent(QContextMenuEvent *event) override;
+#endif // QT_NO_CONTEXTMENU
+
 private:
+    QMenu *fileMenu;
+    QActionGroup *alignmentGroup;
+    QAction *loadAct;
+    QAction *startAct;
+    QAction *exitAct;
+
+    QAction *leftAlignAct;
+    QAction *rightAlignAct;
+    QAction *justifyAct;
+    QAction *centerAct;
+
     QBoxLayout* phbxLayout0;
     QPushButton *loadButt;
     QPushButton *start_stop;

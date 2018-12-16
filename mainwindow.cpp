@@ -81,4 +81,63 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 
     // Set QWidget as the central layout of the main window
     setCentralWidget(window);
+
+    createActions();
+    createMenus();
+
+    QString message = tr("A context menu is available by right-clicking");
+    statusBar()->showMessage(message);
+}
+
+void MainWindow::createActions()
+{
+    loadAct = new QAction(tr("&Load"), this);
+    loadAct->setShortcuts(QKeySequence::New);
+    loadAct->setStatusTip(tr("Load a Video"));
+    loadAct->setChecked(true);
+    connect(loadAct, &QAction::triggered, this, &MainWindow::loadVideo);
+
+    startAct = new QAction(tr("&Start"), this);
+    startAct->setShortcuts(QKeySequence::New);
+    startAct->setStatusTip(tr("Start the Process"));
+    connect(startAct, &QAction::triggered, this, &MainWindow::startProcess);
+
+    exitAct = new QAction(tr("&Exit"), this);
+    exitAct->setShortcuts(QKeySequence::New);
+    exitAct->setStatusTip(tr("Exit the Program"));
+    connect(exitAct, &QAction::triggered, this, &QWidget::close);
+}
+
+void MainWindow::createMenus()
+{
+    fileMenu = menuBar()->addMenu(tr("&File"));
+    fileMenu->addAction(loadAct);
+    fileMenu->addAction(startAct);
+    fileMenu->addSeparator();
+    fileMenu->addAction(exitAct);
+}
+
+#ifndef QT_NO_CONTEXTMENU
+void MainWindow::contextMenuEvent(QContextMenuEvent *event)
+{
+    QMenu menu(this);
+    menu.addAction(loadAct);
+    menu.addAction(startAct);
+    menu.exec(event->globalPos());
+}
+#endif // QT_NO_CONTEXTMENU
+
+void MainWindow::loadVideo()
+{
+
+}
+
+void MainWindow::startProcess()
+{
+
+}
+
+void MainWindow::stopProcess()
+{
+
 }
