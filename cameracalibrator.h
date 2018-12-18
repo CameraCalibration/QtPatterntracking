@@ -20,7 +20,6 @@ public:
     void setSizePattern(int nRows, int nCols);
     bool loadVideo(std::string path);
     void initProcessing(unsigned int pattSelected);
-    void clearCalibrationInputs();
 
 private:
     void processingPattern();

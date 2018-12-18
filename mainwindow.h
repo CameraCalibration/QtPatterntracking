@@ -86,6 +86,9 @@ private:
     QBoxLayout *qvbl4;
     QLabel *title4;
     QLabel *img4;
+    QBoxLayout *qvbl5;
+    QLabel *title5;
+    QLabel *img5;
 
     QBoxLayout *phbxLayout0;
     QBoxLayout *qvbl0;

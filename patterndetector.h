@@ -20,13 +20,13 @@ public:
     void setImage(cv::Mat im);
     void setVisualizer(MainWindow *vis);
     void setSizePattern(int nRows, int nCols);
-    bool processingRingsPattern(std::vector<cv::Point2f> &keypoints);
+    bool processingRingsPattern(std::vector<cv::Point2f> &keypoints, double &acc_t);
     void initProcessing(unsigned int pattSelected);
 
 private:
     cv::Mat adaptiveThresholdIntegralImage(cv::Mat input);
     std::vector<cv::Point2f> cleanNoiseCenters(std::vector<cv::Point2f> vCenters, std::vector<std::pair<float, int> > vRadius, int maxError=0);
-    std::vector<cv::Point2f> findROI_rings(cv::Mat image, cv::Mat &imgOut);
+    std::vector<cv::Point2f> findGrid(cv::Mat image);
     bool trackingRingsPoints(std::vector<cv::Point2f>&);
     bool trackingRingsPoints(std::vector<cv::Point2f>&, std::vector<cv::Point2f>&);
     bool convexHullCorners(std::vector<cv::Point2f> &keypoints, std::vector<cv::Point2f> &corners);

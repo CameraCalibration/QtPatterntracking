@@ -8,6 +8,7 @@
 #include <stack>
 #include <fstream>
 #include <set>
+#include <omp.h>
 
 // Convertir floats a strings
 template<typename Te>
@@ -220,15 +221,12 @@ std::vector<cv::Point2f> PatternDetector::cleanNoiseCenters(std::vector<cv::Poin
 }
 
 ///
-/// \brief PatternDetector::findROI_rings    Encuentra los contornos de interes
+/// \brief PatternDetector::findGrid    Encuentra los contornos de interes
 /// \param image    Imagen binaria de entrada
 /// \return Vector de centros de los contornos de interes
 ///
-std::vector<cv::Point2f> PatternDetector::findROI_rings(cv::Mat image, cv::Mat &imgOut)
+std::vector<cv::Point2f> PatternDetector::findGrid(cv::Mat image)
 {
-    // Imagen auxiliar
-    imgOut = cv::Mat::zeros(image.size(), CV_8UC3);
-
     // Obtencion de los contornos con jerarquia
     std::vector<std::vector<cv::Point> > contours;
     std::vector<cv::Vec4i> hierarchy;
@@ -291,57 +289,92 @@ std::vector<cv::Point2f> PatternDetector::findROI_rings(cv::Mat image, cv::Mat &
                 vectRadios.push_back(std::make_pair(std::max(boxPar.size.width, boxPar.size.height) * 0.5, keypoints.size() - 1));
 
                 // Grafica de los contornos (padre e hijo)
-                drawContours(imgOut, contours, i, cv::Scalar::all(255), 1, 8);
-                drawContours(imgOut, contours, parent, cv::Scalar::all(255), 1, 8);
+                //drawContours(imgOut, contours, i, cv::Scalar::all(255), 1, 8);
+                //drawContours(imgOut, contours, parent, cv::Scalar::all(255), 1, 8);
                 // Grafica de las elipses
-                ellipse(imgOut, boxPar, cv::Scalar(0,0,255), 1, CV_AA);
-                ellipse(imgOut, boxCurr, cv::Scalar(0,0,255), 1, CV_AA);
+                //ellipse(imgOut, boxPar, cv::Scalar(0,0,255), 1, CV_AA);
+                //ellipse(imgOut, boxCurr, cv::Scalar(0,0,255), 1, CV_AA);
             }
         }
     }
     keypoints = cleanNoiseCenters(keypoints, vectRadios, 2);
     // Grafica de los centros despues de la limpieza
-    for(size_t i = 0; i < keypoints.size(); i++) {
+    /*for(size_t i = 0; i < keypoints.size(); i++) {
         circle(imgOut, keypoints[i], 3, cv::Scalar(255,255,0), -1);
-    }
+    }*/
     return keypoints;
 }
 
-bool PatternDetector::processingRingsPattern(std::vector<cv::Point2f> &keypoints)
+bool PatternDetector::processingRingsPattern(std::vector<cv::Point2f> &keypoints, double &acc_t)
 {
     // Variables auxiliares
-    cv::Mat tmp;
+    cv::Mat imgGray, imgBlur, imgThresh;
+    double start_time, gray_time, blur_time, threshold_time, grid_time, conhull_time=0, pattern_time;
+    char time[55];
 
     // Conversion de imagen a escala de grises
-    cv::cvtColor(img, tmp, CV_BGR2GRAY);
+    start_time = omp_get_wtime();
+    cv::cvtColor(img, imgGray, CV_BGR2GRAY);
+    gray_time = omp_get_wtime() - start_time;
 
     // Aplicacion de filtro gaussiano
-    cv::GaussianBlur(tmp, tmp, cv::Size(3,3), 0.5, 0.5);
-    visualizer->visualizeImage(PROC1, ImageHelper::convertMatToQimage(tmp.clone()), "Filtro gaussiano");
+    start_time = omp_get_wtime();
+    cv::GaussianBlur(imgGray, imgBlur, cv::Size(3,3), 0.5, 0.5);
+    blur_time = omp_get_wtime() - start_time;
 
     // Segmentacion de imagen usando threshold adaptativo
-    tmp = adaptiveThresholdIntegralImage(tmp);
-    visualizer->visualizeImage(PROC2, ImageHelper::convertMatToQimage(tmp.clone()), "Threshold adaptativo (paper)");
+    start_time = omp_get_wtime();
+    imgThresh = adaptiveThresholdIntegralImage(imgBlur);
+    threshold_time = omp_get_wtime() - start_time;
 
     // Obtención del ROI
-    //std::cout << "findROI_rings " << endl;
-    keypoints = findROI_rings(tmp.clone(), tmp);
-    visualizer->visualizeImage(PROC3, ImageHelper::convertMatToQimage(tmp.clone()), "ROI");
+    cv::Mat imgGrid = cv::Mat::zeros(img.size(), CV_8UC3);
+    start_time = omp_get_wtime();
+    keypoints = findGrid(imgThresh);
+    grid_time = omp_get_wtime() - start_time;
 
     cv::Mat imgCH = img.clone();
     std::vector<cv::Point2f> corners;
+    start_time = omp_get_wtime();
     convexHullCorners(keypoints, corners);
-    // escribiendo esquinas del convexhull que son puntos consecutivos de un cuadrilatero
+    conhull_time = omp_get_wtime() - start_time;
+
+    start_time = omp_get_wtime();
+    bool trackCorrect = trackingRingsPoints(keypoints, corners);
+    pattern_time = omp_get_wtime() - start_time;
+
+    std::sprintf(time, "Gray Time: %.3f", gray_time);
+    putText(imgGray, time, cv::Point2f(15, 25), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255, 255), 2);
+    visualizer->visualizeImage(PROC1, ImageHelper::convertMatToQimage(imgGray), "Color To Gray");
+
+    std::sprintf(time, "Blur Time: %.3f", blur_time);
+    putText(imgBlur, time, cv::Point2f(15, 25), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255, 255), 2);
+    visualizer->visualizeImage(PROC2, ImageHelper::convertMatToQimage(imgBlur), "Filtro gaussiano");
+
+    std::sprintf(time, "Threshold Time: %.3f", threshold_time);
+    putText(imgThresh, time, cv::Point2f(15, 25), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255, 255), 2);
+    visualizer->visualizeImage(PROC3, ImageHelper::convertMatToQimage(imgThresh), "Threshold adaptativo (paper)");
+
+    std::sprintf(time, "Grid Time: %.3f", grid_time);
+    putText(imgGrid, time, cv::Point2f(15, 25), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255, 255), 2);
+    for(size_t i = 0; i < keypoints.size(); i++) {
+        circle(imgGrid, keypoints[i], 3, cv::Scalar(255,255,0), -1);
+    }
+    visualizer->visualizeImage(PROC4, ImageHelper::convertMatToQimage(imgGrid), "Grid");
+
+    std::sprintf(time, "Convex Hull Time: %.3f", conhull_time);
+    putText(imgCH, time, cv::Point2f(15, 25), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255, 255), 2);
     for(int i = 0; i < corners.size(); i++){
         circle(imgCH, corners[i], 10, colors[i], CV_FILLED,8,0);
     }
-    visualizer->visualizeImage(PROC4, ImageHelper::convertMatToQimage(imgCH), "Convex Hull");
+    visualizer->visualizeImage(PROC5, ImageHelper::convertMatToQimage(imgCH), "Convex Hull");
 
-    //std::cout << "trackingPoints Rings" << endl;
-    bool trackCorrect = trackingRingsPoints(keypoints, corners);
+    std::sprintf(time, "Pattern Time: %.3f - Total Time: %.3f", pattern_time, gray_time+blur_time+threshold_time+grid_time+conhull_time+pattern_time);
+    putText(img, time, cv::Point2f(15, 25), cv::FONT_HERSHEY_PLAIN, 1.5, cv::Scalar(0, 0, 255, 255), 2);
+    cv::drawChessboardCorners(img, cv::Size(numCols, numRows), keypoints, true);
     visualizer->visualizeImage(PROCFIN, ImageHelper::convertMatToQimage(img), "Pattern");
 
-    //std::cout << "trancking correct" ;
+    acc_t += (gray_time+blur_time+threshold_time+grid_time+conhull_time+pattern_time);
     return trackCorrect;
 }
 
@@ -484,7 +517,7 @@ bool PatternDetector::trackingRingsPoints(std::vector<cv::Point2f> &keypoints, s
             std::sort(distanciaRecta.begin(),distanciaRecta.end(),cmp2);
             for(int i=0;i<numRows-2;i++){
                 SortPoints.push_back(std::make_pair(distanciaRecta[i].second.x,distanciaRecta[i].second.y));
-                circle(img, distanciaRecta[i].second, 5, colors[j%colors.size()], CV_FILLED,8,0);
+               // circle(img, distanciaRecta[i].second, 5, colors[j%colors.size()], CV_FILLED,8,0);
             }
 
 
@@ -498,16 +531,16 @@ bool PatternDetector::trackingRingsPoints(std::vector<cv::Point2f> &keypoints, s
         }
 
         // Escribiendo las rectas de manera descendente
-        int counter = 0;  // Contador para etiquetar los puntos
+        //int counter = 0;  // Contador para etiquetar los puntos
         keypoints.clear();
         // Extraendo los elementos de la pila
         while(!pila.empty()){
             // Escribiendo numeros
             for(int i=0;i<pila.top().size();i++){
-                std::stringstream sstr;
-                sstr<<counter;
-                counter++;
-                cv::putText(img,sstr.str(),cv::Point2f(pila.top()[i].first,pila.top()[i].second),cv::FONT_HERSHEY_SIMPLEX,0.5,CV_RGB(255,255,255),2);
+                //std::stringstream sstr;
+                //sstr<<counter;
+                //counter++;
+                //cv::putText(img,sstr.str(),cv::Point2f(pila.top()[i].first,pila.top()[i].second),cv::FONT_HERSHEY_SIMPLEX,0.5,CV_RGB(255,255,255),2);
                 keypoints.push_back(cv::Point2f(pila.top()[i].first,pila.top()[i].second));
             }
             pila.pop();

@@ -16,7 +16,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             title1->setStyleSheet("font-size:8pt; font-weight:600; color:#000000;");
             title1->setAlignment(Qt::AlignCenter);
             img1->setStyleSheet("border: 1px solid gray");
-            img1->setMaximumSize(QSize(261,231));
+            //img1->setMaximumSize(QSize(261,231));
             img1->setMinimumSize(QSize(261,231));
             qvbl1->addWidget(title1);
             qvbl1->addWidget(img1);
@@ -26,7 +26,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             title2->setStyleSheet("font-size:8pt; font-weight:600; color:#000000;");
             title2->setAlignment(Qt::AlignCenter);
             img2->setStyleSheet("border: 1px solid gray");
-            img2->setMaximumSize(QSize(261,231));
+            //img2->setMaximumSize(QSize(261,231));
             img2->setMinimumSize(QSize(261,231));
             qvbl2->addWidget(title2);
             qvbl2->addWidget(img2);
@@ -36,7 +36,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             title3->setStyleSheet("font-size:8pt; font-weight:600; color:#000000;");
             title3->setAlignment(Qt::AlignCenter);
             img3->setStyleSheet("border: 1px solid gray");
-            img3->setMaximumSize(QSize(261,231));
+            //img3->setMaximumSize(QSize(261,231));
             img3->setMinimumSize(QSize(261,231));
             qvbl3->addWidget(title3);
             qvbl3->addWidget(img3);
@@ -46,15 +46,26 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             title4->setStyleSheet("font-size:8pt; font-weight:600; color:#000000;");
             title4->setAlignment(Qt::AlignCenter);
             img4->setStyleSheet("border: 1px solid gray");
-            img4->setMaximumSize(QSize(261,231));
+            //img4->setMaximumSize(QSize(261,231));
             img4->setMinimumSize(QSize(261,231));
             qvbl4->addWidget(title4);
             qvbl4->addWidget(img4);
+        qvbl5 = new QBoxLayout(QBoxLayout::TopToBottom);
+            title5 = new QLabel("Fase 5");
+            img5 = new QLabel();
+            title5->setStyleSheet("font-size:8pt; font-weight:600; color:#000000;");
+            title5->setAlignment(Qt::AlignCenter);
+            img5->setStyleSheet("border: 1px solid gray");
+            //img5->setMaximumSize(QSize(261,231));
+            img5->setMinimumSize(QSize(261,231));
+            qvbl5->addWidget(title5);
+            qvbl5->addWidget(img5);
 
         phbxLayout2->addItem(qvbl1);
         phbxLayout2->addItem(qvbl2);
         phbxLayout2->addItem(qvbl3);
         phbxLayout2->addItem(qvbl4);
+        phbxLayout2->addItem(qvbl5);
 
     phbxLayout0 = new  QBoxLayout(QBoxLayout::LeftToRight);
         qvbl0 = new QBoxLayout(QBoxLayout::TopToBottom);
@@ -63,7 +74,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             title0->setStyleSheet("font-size:10pt; font-weight:600; color:#000000;");
             title0->setAlignment(Qt::AlignCenter);
             img0->setStyleSheet("border: 1px solid gray");
-            img0->setMaximumSize(QSize(522,462));
+            //img0->setMaximumSize(QSize(522,462));
+            img0->setAlignment(Qt::AlignCenter);
             img0->setMinimumSize(QSize(522,462));
             qvbl0->addWidget(title0);
             qvbl0->addWidget(img0);
@@ -160,7 +172,6 @@ void MainWindow::startProcess()
 
     calibrator->setSizePattern(numRows->text().toInt(), numCols->text().toInt());
     calibrator->setCurrentCalibrator(currCalibrator);
-    calibrator->clearCalibrationInputs();
     calibrator->initProcessing(pattSelected);
 }
 
@@ -177,7 +188,7 @@ void MainWindow::visualizeImage(int id, QImage img, std::string title)
     QPixmap image = QPixmap::fromImage(img);
     switch (id) {
     case PROCFIN:
-        img0->setPixmap(image.scaled(img0->size()));
+        img0->setPixmap(image.scaled(img0->size(), Qt::KeepAspectRatio));
         if(title == "") title = "RESULTADO FINAL";
         title0->setText(QString::fromStdString(title));
         break;
@@ -196,6 +207,10 @@ void MainWindow::visualizeImage(int id, QImage img, std::string title)
     case PROC4:
         img4->setPixmap(image.scaled(img4->size()));
         title4->setText(QString::fromStdString(title));
+        break;
+    case PROC5:
+        img5->setPixmap(image.scaled(img5->size()));
+        title5->setText(QString::fromStdString(title));
         break;
     }
 }
@@ -228,6 +243,10 @@ void MainWindow::cleanImage(int id)
     case PROC4:
         img4->clear();
         title4->setText("");
+        break;
+    case PROC5:
+        img5->clear();
+        title5->setText("");
         break;
     }
 }

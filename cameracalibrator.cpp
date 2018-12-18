@@ -11,7 +11,6 @@ CameraCalibrator::CameraCalibrator(QObject *parent) : QObject(parent)
 {
     pattDetector = new PatternDetector();
     actived = true;
-    clearCalibrationInputs();
 }
 
 ///
@@ -70,7 +69,7 @@ bool CameraCalibrator::loadVideo(std::string path)
 void CameraCalibrator::processingPattern()
 {
     //Variable tiempo
-    cv::TickMeter tm;
+    double acc_t = 0;
     // Variables auxiliares
     cv::Mat img, tmp;
     int framesTotal = 0, framesAnalyzed = 0;
@@ -89,9 +88,7 @@ void CameraCalibrator::processingPattern()
         tmp = img.clone();
         pattDetector->setImage(tmp);
 
-        tm.start();
-        status = pattDetector->processingRingsPattern(keypoints);
-        tm.stop();
+        status = pattDetector->processingRingsPattern(keypoints, acc_t);
 
         // found the pattern?
         if(status) {
@@ -105,14 +102,14 @@ void CameraCalibrator::processingPattern()
         if (cv::waitKey(10) >= 0)
             break;
     }
-    std::cout<<"\nTM get counter: "<<tm.getCounter()<<std::endl;
-    double average_time = tm.getTimeMilli() / tm.getCounter();
+
+    double average_time = acc_t / framesTotal;
 
     std::cout << "=====================\n";
     std::cout << "Total Frames: " << framesTotal<<std::endl;
     std::cout << "Frames Analizados: " << framesAnalyzed<<std::endl;
     std::cout << "% Analisis: " << (framesAnalyzed * 100.0 / framesTotal)<<std::endl;
-    std::cout << "AVG Time (ms): "<<average_time<< std::endl;
+    std::cout << "AVG Time (ms): "<<average_time*1000<< std::endl;
     std::cout << "=====================\n";
 }
 
@@ -138,20 +135,4 @@ void CameraCalibrator::initProcessing(unsigned int pattSelected)
         break;
     }
     processingPattern();
-    clearCalibrationInputs();
-}
-
-///
-/// \brief CameraCalibrator::clearCalibrationInputs limpia los parámetros de calibración
-///
-void CameraCalibrator::clearCalibrationInputs()
-{
-    /*isCalibrated = false;
-    distanceKeypoints = 0;
-    numFramesToCalibration = 0;
-    pathOutput = "";
-    calibFixPrincipalPoint = false;
-    calibFixAspectRatio = false;
-    calibZeroTangentDist = true;
-    saveCamParams = false;*/
 }
