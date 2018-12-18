@@ -156,18 +156,20 @@ void MainWindow::loadVideo()
 void MainWindow::startProcess()
 {
     startAct->setEnabled(false);
+    stopAct->setEnabled(true);
 
     calibrator->setSizePattern(numRows->text().toInt(), numCols->text().toInt());
     calibrator->setCurrentCalibrator(currCalibrator);
     calibrator->clearCalibrationInputs();
     calibrator->initProcessing(pattSelected);
-
-    stopAct->setEnabled(false);
 }
 
 void MainWindow::stopProcess()
 {
+    stopAct->setEnabled(false);
+    startAct->setEnabled(true);
 
+    calibrator->setActived(false);
 }
 
 void MainWindow::visualizeImage(int id, QImage img, std::string title)
@@ -203,7 +205,6 @@ void MainWindow::on_rbRing_clicked()
     pattSelected = PATT_RING;
     numRows->setText("5");
     numCols->setText("6");
-    //ui->centersDistance->setText("50");
 }
 
 void MainWindow::cleanImage(int id)

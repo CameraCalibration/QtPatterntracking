@@ -88,34 +88,32 @@ void CameraCalibrator::processingPattern()
         std::vector<cv::Point2f> keypoints;
         tmp = img.clone();
         pattDetector->setImage(tmp);
-        switch (pattDetector->getCurrentPattern()) {
-            case PATT_RING:
-                tm.start();
-                status = pattDetector->processingRingsPattern(keypoints);
-                tm.stop();
-                break;
-        }
-        // preguntamos si encontro el patron
+
+        tm.start();
+        status = pattDetector->processingRingsPattern(keypoints);
+        tm.stop();
+
+        // found the pattern?
         if(status) {
             framesAnalyzed++;
             mapFrames[framesTotal] = keypoints;
-            //imwrite(folderOutVideo + "/frame_" + num2str<int>(framesTotal) + ".png", tmp);
         }
         else {
-            //imwrite(folderOutVideo + "/frame_" + num2str<int>(framesTotal) + "_mal.png", tmp);
-            continue; // Pasamos al siguiente frame
+            continue; // next frame
         }
 
         if (cv::waitKey(10) >= 0)
             break;
     }
-    std::cout<<"TM get counter"<<tm.getCounter();
+    std::cout<<"\nTM get counter: "<<tm.getCounter()<<std::endl;
     double average_time = tm.getTimeMilli() / tm.getCounter();
 
     std::cout << "=====================\n";
-    std::cout << "Total Frames: " << framesTotal << "\nFrames Analizados: " << framesAnalyzed << "\n% Analisis: " << (framesAnalyzed * 1.0 / framesTotal) << "\n AVG: "<<average_time<< std::endl;
+    std::cout << "Total Frames: " << framesTotal<<std::endl;
+    std::cout << "Frames Analizados: " << framesAnalyzed<<std::endl;
+    std::cout << "% Analisis: " << (framesAnalyzed * 100.0 / framesTotal)<<std::endl;
+    std::cout << "AVG Time (ms): "<<average_time<< std::endl;
     std::cout << "=====================\n";
-
 }
 
 ///

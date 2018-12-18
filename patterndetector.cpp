@@ -48,7 +48,12 @@ bool cmp2(std::pair<float,cv::Point2f>  p1, std::pair<float,cv::Point2f> p2){
 
 PatternDetector::PatternDetector(QObject *parent) : QObject(parent)
 {
-;
+    colors.push_back(MY_COLOR_RED);
+    colors.push_back(MY_COLOR_BLUE);
+    colors.push_back(MY_COLOR_YELLOW);
+    colors.push_back(MY_COLOR_GREEN);
+    colors.push_back(MY_COLOR_ORANGE);
+    colors.push_back(MY_COLOR_WHITE);
 }
 
 void PatternDetector::setCurrentPattern(unsigned int pattType)
@@ -309,30 +314,48 @@ bool PatternDetector::processingRingsPattern(std::vector<cv::Point2f> &keypoints
 
     // Conversion de imagen a escala de grises
     cv::cvtColor(img, tmp, CV_BGR2GRAY);
+
     // Aplicacion de filtro gaussiano
     cv::GaussianBlur(tmp, tmp, cv::Size(3,3), 0.5, 0.5);
     visualizer->visualizeImage(PROC1, ImageHelper::convertMatToQimage(tmp.clone()), "Filtro gaussiano");
+
     // Segmentacion de imagen usando threshold adaptativo
     tmp = adaptiveThresholdIntegralImage(tmp);
     visualizer->visualizeImage(PROC2, ImageHelper::convertMatToQimage(tmp.clone()), "Threshold adaptativo (paper)");
+
     // Obtención del ROI
-    std::cout << "findROI_rings " << endl;
+    //std::cout << "findROI_rings " << endl;
     keypoints = findROI_rings(tmp.clone(), tmp);
     visualizer->visualizeImage(PROC3, ImageHelper::convertMatToQimage(tmp.clone()), "ROI");
-    std::cout << "trackingPoints Rings" << endl;
-    bool trackCorrect = trackingRingsPoints(keypoints);
-    std::cout << "trancking correct" ;
+
+    cv::Mat imgCH = img.clone();
+    std::vector<cv::Point2f> corners;
+    convexHullCorners(keypoints, corners);
+    // escribiendo esquinas del convexhull que son puntos consecutivos de un cuadrilatero
+    for(int i = 0; i < corners.size(); i++){
+        circle(imgCH, corners[i], 10, colors[i], CV_FILLED,8,0);
+    }
+    visualizer->visualizeImage(PROC4, ImageHelper::convertMatToQimage(imgCH), "Convex Hull");
+
+    //std::cout << "trackingPoints Rings" << endl;
+    bool trackCorrect = trackingRingsPoints(keypoints, corners);
+    visualizer->visualizeImage(PROCFIN, ImageHelper::convertMatToQimage(img), "Pattern");
+
+    //std::cout << "trancking correct" ;
     return trackCorrect;
-    return false;
 }
 
-std::vector<cv::Point2f> PatternDetector::ordenar(std::vector<cv::Point2f> centros)
+bool PatternDetector::trackingRingsPoints(std::vector<cv::Point2f> &keypoints)
 {
-    cv::RotatedRect rr = cv::minAreaRect(centros);
+    if(keypoints.size() != numCols * numRows) {
+        return false;
+    }
+
+    cv::RotatedRect rr = cv::minAreaRect(keypoints);
     RectanguloR = rr;
 
-    if (rr.angle < -90)
-        cv::waitKey(19);
+    //if (rr.angle < -90)
+    //    cv::waitKey(19);
     if (rr.size.width < rr.size.height)
     {
         indice = 2;
@@ -345,22 +368,15 @@ std::vector<cv::Point2f> PatternDetector::ordenar(std::vector<cv::Point2f> centr
         //RectanguloR.angle = 0;
     }
 
-    std::sort(centros.begin(), centros.end(), mayorpuntosX);
+    std::sort(keypoints.begin(), keypoints.end(), mayorpuntosX);
 
     for (size_t i = 0; i < numCols; i++)
     {
-        std::sort(centros.begin() + numRows * i, centros.begin() + (numRows * i + numRows), mayorpuntosY);
+        std::sort(keypoints.begin() + numRows * i, keypoints.begin() + (numRows * i + numRows), mayorpuntosY);
     }
 
     //std::sort(centros.begin(), centros.end(), mayorpuntosY);
 
-    return centros;
-}
-
-bool PatternDetector::trackingRingsPoints(std::vector<cv::Point2f> &keypoints){
-    //ordenar
-    /*keypoints.resize(30);
-    keypoints = ordenar(keypoints);
     cv::circle(img, keypoints[0], 10, cv::Scalar(255, 0, 125));
     cv::putText(img,std::to_string(0),keypoints[0],cv::FONT_HERSHEY_SIMPLEX,0.5,CV_RGB(255,255,255),2);
 
@@ -373,153 +389,130 @@ bool PatternDetector::trackingRingsPoints(std::vector<cv::Point2f> &keypoints){
         cv::line(img, keypoints[i - 1], keypoints[i], MY_COLOR_GREEN);
     }
 
-    //dibujar
-    cv::imshow("RESULTADO FINAL", img);
+    visualizer->visualizeImage(PROCFIN, ImageHelper::convertMatToQimage(img), "Pattern");
+    return true;
+}
 
-    visualizer->visualizeImage(PROCFIN, ImageHelper::convertMatToQimage(img), "Resultado Final");
-    return true;*/
+bool  PatternDetector::convexHullCorners(std::vector<cv::Point2f> &keypoints, std::vector<cv::Point2f> &corners)
+{
+    corners.clear();
+    std::vector<std::vector<cv::Point2f> > hull(1);
+    cv::convexHull(cv::Mat(keypoints), hull[0], false);
+
+    //Obteniendo las esquinas del convexhull en el patron
+    std::vector<int> posCornes = getPosCornes(hull);
+
+    for(int i = 0; i < (int)posCornes.size(); i++){
+        corners.push_back(hull[0][posCornes[i]]);
+    }
+
+    return true;
+}
+
+bool PatternDetector::trackingRingsPoints(std::vector<cv::Point2f> &keypoints, std::vector<cv::Point2f> &corners){
 
     if(keypoints.size() != numCols * numRows) {
         return false;
     }
 
-    // Declaracion de vectores de colores
-    std::vector<cv::Scalar> colors;
-    colors.push_back(MY_COLOR_RED);
-    colors.push_back(MY_COLOR_BLUE);
-    colors.push_back(MY_COLOR_YELLOW);
-    colors.push_back(MY_COLOR_GREEN);
-    colors.push_back(MY_COLOR_ORANGE);
-    colors.push_back(MY_COLOR_WHITE);
+    std::vector<std::pair<cv::Point2f,cv::Point2f> > extremosUpDown;
+    // Hallando extremos, arriba y abajo
+    for(int i = 0; i < corners.size(); i++){
+        extremosUpDown.push_back(std::make_pair(corners[i],corners[(i+1) % 4]));
+    }
 
-    // En esta parte se empieza a utilizar el convexhull para hallar los segmentos de arriba y abajo
-    if(keypoints.size() > 0) {
+    // Hallando una recta con 6 puntos en su contenido extremosUpDown
+    std::vector<std::vector<std::pair<float,float> > > ans;
+    for(int i=0;i<(int)extremosUpDown.size();i++){
+        cv::Point2f A = extremosUpDown[i].first;
+        cv::Point2f B = extremosUpDown[i].second;
+        cv::Point2f P;
+        // Interseccion de la recta AB con el punto P
+        std::vector<std::pair<float,float> > aux;
+        for(int k=0;k<(int)keypoints.size();k++){
 
-        cv::Mat imgCH = img.clone();
-        std::vector<std::vector<cv::Point2f> > keys;
-        keys.push_back(keypoints);
-        std::vector<std::vector<cv::Point2f> > hull(1);
-        cv::convexHull(cv::Mat(keypoints), hull[0], false);
-
-        //Obteniendo las esquinas del convexhull en el patron
-        std::vector<int> posCornes = getPosCornes(hull);
-
-        // escribiendo esquinas del convexhull que son puntos consecutivos de un cuadrilatero
-        for(int i = 0; i < (int)posCornes.size(); i++){
-            circle(imgCH, hull[0][posCornes[i]], 10, colors[i], CV_FILLED,8,0);
+            // Vemos que no sean los mismo puntos para evitar overflow
+            if( (keypoints[k].x == A.x && keypoints[k].y == A.y ) || (keypoints[k].x == B.x && keypoints[k].y == B.y )) continue;
+            P = keypoints[k];
+            // Hallando la distancia del punto P a la recta AB
+            double numerador = (P.x-A.x) * (B.y-A.y) - (P.y-A.y) * (B.x-A.x);
+            double denominador = sqrt((B.x - A.x)*(B.x - A.x) + (B.y - A.y)*(B.y - A.y));
+            double distancia = numerador / denominador;
+            if(abs((int)distancia) < 6){ // se escoge 6 como tolerancia de precision
+                aux.push_back(std::make_pair(keypoints[k].x,keypoints[k].y));
+            }
         }
-        visualizer->visualizeImage(PROC4, ImageHelper::convertMatToQimage(imgCH), "Convex Hull");
+        aux.push_back(std::make_pair(A.x,A.y));
+        aux.push_back(std::make_pair(B.x,B.y));
 
-        std::vector<std::pair<cv::Point2f,cv::Point2f> > extremosUpDown;
-        // Hallando extremos, arriba y abajo
-        for(int i = 0; i < (int)posCornes.size(); i++){
-            extremosUpDown.push_back(std::make_pair(hull[0][posCornes[i]],hull[0][posCornes[(i+1) % 4]]));
+        if((int)aux.size()==numCols){
+            //Ordenando Ascendentemente x, descendentemente y
+            sort(aux.begin(),aux.end(),cmp);
+            ans.push_back(aux);
         }
+    }
 
-        // Hallando una recta con 6 puntos en su contenido extremosUpDown
-        std::vector<std::vector<std::pair<float,float> > > ans;
-        for(int i=0;i<(int)extremosUpDown.size();i++){
-            cv::Point2f A = extremosUpDown[i].first;
-            cv::Point2f B = extremosUpDown[i].second;
+    std::vector<std::pair<float,float> > SortPoints;
+    std::stack<std::vector<std::pair<float,float> > > pila;
+    // escribir lineas de colores
+    if(ans.size()>1){
+
+        cv::Point2f PPP = cv::Point2f(ans[0][0].first,ans[0][0].second);
+        for(int j=0;j<std::min((int)ans[0].size(),(int)ans[1].size());j++){
+
+            SortPoints.push_back(std::make_pair(ans[0][j].first,ans[0][j].second));
+            SortPoints.push_back(std::make_pair(ans[1][j].first,ans[1][j].second));
+
+            std::vector<std::pair<float,cv::Point2f> > distanciaRecta; // Distancia a la recta AB del punto P
+            // Hallando los puntos de la recta AB
+            cv::Point2f A =  cv::Point2f(ans[0][j].first,ans[0][j].second);
+            cv::Point2f B =  cv::Point2f(ans[1][j].first,ans[1][j].second);
             cv::Point2f P;
-            // Interseccion de la recta AB con el punto P
-            std::vector<std::pair<float,float> > aux;
+            // Keypoints tiene todos los puntos del patron
             for(int k=0;k<(int)keypoints.size();k++){
-
-                // Vemos que no sean los mismo puntos para evitar overflow
+                //Vemos que no sean los mismo puntos para evitar overflow
                 if( (keypoints[k].x == A.x && keypoints[k].y == A.y ) || (keypoints[k].x == B.x && keypoints[k].y == B.y )) continue;
                 P = keypoints[k];
                 // Hallando la distancia del punto P a la recta AB
                 double numerador = (P.x-A.x) * (B.y-A.y) - (P.y-A.y) * (B.x-A.x);
                 double denominador = sqrt((B.x - A.x)*(B.x - A.x) + (B.y - A.y)*(B.y - A.y));
                 double distancia = numerador / denominador;
-                if(abs((int)distancia) < 6){ // se escoge 6 como tolerancia de precision
-                    aux.push_back(std::make_pair(keypoints[k].x,keypoints[k].y));
-                }
+                distanciaRecta.push_back(std::make_pair(abs((float)distancia),P));
             }
-            aux.push_back(std::make_pair(A.x,A.y));
-            aux.push_back(std::make_pair(B.x,B.y));
 
-            if((int)aux.size()==numCols){
-                //Ordenando Ascendentemente x, descendentemente y
-                sort(aux.begin(),aux.end(),cmp);
-                ans.push_back(aux);
+            // Ordenamos las distancias, para escoger los 3 mas cercanos
+            std::sort(distanciaRecta.begin(),distanciaRecta.end(),cmp2);
+            for(int i=0;i<numRows-2;i++){
+                SortPoints.push_back(std::make_pair(distanciaRecta[i].second.x,distanciaRecta[i].second.y));
+                circle(img, distanciaRecta[i].second, 5, colors[j%colors.size()], CV_FILLED,8,0);
             }
+
+
+            //circle(img, Point(ans[1][j].first,ans[1][j].second), 10, CV_RGB(0,0,0), CV_FILLED,8,0);
+            std::sort(SortPoints.rbegin(), SortPoints.rend(), [](const std::pair<float, float>& first, const std::pair<float, float>& second){
+                return (first.second < second.second);
+            });
+            // Almacenando los puntos de una recta
+            pila.push(SortPoints);
+            SortPoints.clear();
         }
 
-        std::vector<std::pair<float,float> > SortPoints;
-        std::stack<std::vector<std::pair<float,float> > > pila;
-        // escribir lineas de colores
-        if(ans.size()>1){
-
-            cv::Point2f PPP = cv::Point2f(ans[0][0].first,ans[0][0].second);
-            for(int j=0;j<std::min((int)ans[0].size(),(int)ans[1].size());j++){
-                // Escribiendo los puntos extremos y el segmento entre ellos
-                //circle(img, Point2f(ans[0][j].first,ans[0][j].second), 5, colors[j%colors.size()], CV_FILLED,8,0);
-                //circle(img, Point2f(ans[1][j].first,ans[1][j].second), 5, colors[j%colors.size()], CV_FILLED,8,0);
-                //line(img,Point2f(ans[0][j].first,ans[0][j].second),Point2f(ans[1][j].first,ans[1][j].second),colors[j%colors.size()]);
-
-                SortPoints.push_back(std::make_pair(ans[0][j].first,ans[0][j].second));
-                SortPoints.push_back(std::make_pair(ans[1][j].first,ans[1][j].second));
-
-                std::vector<std::pair<float,cv::Point2f> > distanciaRecta; // Distancia a la recta AB del punto P
-                // Hallando los puntos de la recta AB
-                cv::Point2f A =  cv::Point2f(ans[0][j].first,ans[0][j].second);
-                cv::Point2f B =  cv::Point2f(ans[1][j].first,ans[1][j].second);
-                cv::Point2f P;
-                // Keypoints tiene todos los puntos del patron
-                for(int k=0;k<(int)keypoints.size();k++){
-                    //Vemos que no sean los mismo puntos para evitar overflow
-                    if( (keypoints[k].x == A.x && keypoints[k].y == A.y ) || (keypoints[k].x == B.x && keypoints[k].y == B.y )) continue;
-                    P = keypoints[k];
-                    // Hallando la distancia del punto P a la recta AB
-                    double numerador = (P.x-A.x) * (B.y-A.y) - (P.y-A.y) * (B.x-A.x);
-                    double denominador = sqrt((B.x - A.x)*(B.x - A.x) + (B.y - A.y)*(B.y - A.y));
-                    double distancia = numerador / denominador;
-                    distanciaRecta.push_back(std::make_pair(abs((float)distancia),P));
-                }
-
-                // Ordenamos las distancias, para escoger los 3 mas cercanos
-                std::sort(distanciaRecta.begin(),distanciaRecta.end(),cmp2);
-                for(int i=0;i<numRows-2;i++){
-                    SortPoints.push_back(std::make_pair(distanciaRecta[i].second.x,distanciaRecta[i].second.y));
-                    circle(img, distanciaRecta[i].second, 5, colors[j%colors.size()], CV_FILLED,8,0);
-                }
-
-
-                //circle(img, Point(ans[1][j].first,ans[1][j].second), 10, CV_RGB(0,0,0), CV_FILLED,8,0);
-                std::sort(SortPoints.rbegin(), SortPoints.rend(), [](const std::pair<float, float>& first, const std::pair<float, float>& second){
-                    return (first.second < second.second);
-                });
-                // Almacenando los puntos de una recta
-                pila.push(SortPoints);
-                SortPoints.clear();
-
-                // Escribiendo linea para la siguiente columna del patron
-                //line(img,Point2f(ans[0][j].first,ans[0][j].second),PPP,colors[(j-1+colors.size())%colors.size()]);
-               // PPP = Point2f(ans[1][j].first,ans[1][j].second);
+        // Escribiendo las rectas de manera descendente
+        int counter = 0;  // Contador para etiquetar los puntos
+        keypoints.clear();
+        // Extraendo los elementos de la pila
+        while(!pila.empty()){
+            // Escribiendo numeros
+            for(int i=0;i<pila.top().size();i++){
+                std::stringstream sstr;
+                sstr<<counter;
+                counter++;
+                cv::putText(img,sstr.str(),cv::Point2f(pila.top()[i].first,pila.top()[i].second),cv::FONT_HERSHEY_SIMPLEX,0.5,CV_RGB(255,255,255),2);
+                keypoints.push_back(cv::Point2f(pila.top()[i].first,pila.top()[i].second));
             }
-
-            // Escribiendo las rectas de manera descendente
-            int counter = 0;  // Contador para etiquetar los puntos
-            keypoints.clear();
-            // Extraendo los elementos de la pila
-            while(!pila.empty()){
-                // Escribiendo numeros
-                for(int i=0;i<pila.top().size();i++){
-                    std::stringstream sstr;
-                    sstr<<counter;
-                    counter++;
-                    cv::putText(img,sstr.str(),cv::Point2f(pila.top()[i].first,pila.top()[i].second),cv::FONT_HERSHEY_SIMPLEX,0.5,CV_RGB(255,255,255),2);
-                    keypoints.push_back(cv::Point2f(pila.top()[i].first,pila.top()[i].second));
-                }
-                pila.pop();
-            }
+            pila.pop();
         }
-        cv::imshow("RESULTADO FINAL", img);
     }
-
-    visualizer->visualizeImage(PROCFIN, ImageHelper::convertMatToQimage(img), "Resultado Final");
 
     return true;
 }

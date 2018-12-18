@@ -28,6 +28,8 @@ private:
     std::vector<cv::Point2f> cleanNoiseCenters(std::vector<cv::Point2f> vCenters, std::vector<std::pair<float, int> > vRadius, int maxError=0);
     std::vector<cv::Point2f> findROI_rings(cv::Mat image, cv::Mat &imgOut);
     bool trackingRingsPoints(std::vector<cv::Point2f>&);
+    bool trackingRingsPoints(std::vector<cv::Point2f>&, std::vector<cv::Point2f>&);
+    bool convexHullCorners(std::vector<cv::Point2f> &keypoints, std::vector<cv::Point2f> &corners);
     std::vector<cv::Point2f> ordenar(std::vector<cv::Point2f> centros);
 
 public:
@@ -42,13 +44,14 @@ private:
     unsigned int numRows;
     MainWindow *visualizer;
 
-    //TrackingGrid* trackGrid;
     double radioOptimo;
 
     bool foundFirstPattern;
     std::vector<cv::Point2f> patternBefore;
     std::vector<cv::Point2f> patternActual;
     std::pair<float,float> centNextPred;
+
+    std::vector<cv::Scalar> colors;
 };
 
 #endif // PATTERNDETECTOR_H
