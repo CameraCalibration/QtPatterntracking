@@ -21,12 +21,22 @@
 #include <QDebug>
 #include <QGroupBox>
 #include <QButtonGroup>
+#include <QFileDialog>
+#include <opencv2/opencv.hpp>
+#include "constants.h"
+
+class CameraCalibrator;
 
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
 public:
     explicit MainWindow(QWidget *parent = nullptr);
+
+    void visualizeMsg(std::string msg);
+    void visualizeValue(std::string label, double value);
+    void visualizeImage(int id, QImage img, std::string title="");
+    void cleanImage(int id);
 
 private:
     void createActions();
@@ -41,6 +51,7 @@ private slots:
     void loadVideo();
     void startProcess();
     void stopProcess();
+    void on_rbRing_clicked();
 
 protected:
 #ifndef QT_NO_CONTEXTMENU
@@ -52,6 +63,7 @@ private:
     QActionGroup *alignmentGroup;
     QAction *loadAct;
     QAction *startAct;
+    QAction *stopAct;
     QAction *exitAct;
 
     QAction *leftAlignAct;
@@ -59,13 +71,9 @@ private:
     QAction *justifyAct;
     QAction *centerAct;
 
-    QBoxLayout* phbxLayout0;
-    QPushButton *loadButt;
-    QPushButton *start_stop;
     QBoxLayout* phbxLayout1;
-    QBoxLayout *qvbl0;
-    QLabel *title0;
-    QLabel *img0;
+    QLineEdit *numRows, *numCols;
+    QBoxLayout* phbxLayout2;
     QBoxLayout *qvbl1;
     QLabel *title1;
     QLabel *img1;
@@ -75,14 +83,22 @@ private:
     QBoxLayout *qvbl3;
     QLabel *title3;
     QLabel *img3;
-
-    QBoxLayout *phbxLayout2;
     QBoxLayout *qvbl4;
     QLabel *title4;
     QLabel *img4;
 
+    QBoxLayout *phbxLayout0;
+    QBoxLayout *qvbl0;
+    QLabel *title0;
+    QLabel *img0;
+
     QBoxLayout *pbxLayout;
     QWidget *window;
+
+    CameraCalibrator *calibrator;
+    unsigned int pattSelected;
+    unsigned int currCalibrator;
+    unsigned int currFrameSelector;
 
 };
 

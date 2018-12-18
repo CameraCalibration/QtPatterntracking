@@ -18,7 +18,10 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
         main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    patterndetector.cpp \
+#    trackinggrid.cpp \
+    cameracalibrator.cpp
 
 OPENCV_DIR = "D:\opt\windows\opencv\build"
 
@@ -27,4 +30,11 @@ QMAKE_LIBDIR += $$OPENCV_DIR/x64/vc15/lib
 LIBS += -lopencv_world344d
 
 HEADERS += \
-    mainwindow.h
+    mainwindow.h \
+    patterndetector.h \
+#    trackinggrid.h \
+    cameracalibrator.h \
+    image.h \
+    geometria.h \
+    constants.h \
+    metrics.h
