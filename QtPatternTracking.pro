@@ -23,11 +23,17 @@ SOURCES += \
 #    trackinggrid.cpp \
     cameracalibrator.cpp
 
-OPENCV_DIR = "D:\opt\windows\opencv\build"
+OPENCV_DIR = "D:\opt\opencv\build"
 
 INCLUDEPATH += $$OPENCV_DIR/include
 QMAKE_LIBDIR += $$OPENCV_DIR/x64/vc15/lib
-LIBS += -lopencv_world344d
+
+CONFIG(debug, debug|release) {
+    LIBS += -lopencv_world344d
+}
+else {
+    LIBS += -lopencv_world344
+}
 
 HEADERS += \
     mainwindow.h \
