@@ -1,4 +1,4 @@
-# QtPatterntracking
+# QtPatternTracking
 Pattern Tracking for Grid of Rings using Qt.
 
 # Requirements
