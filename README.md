@@ -5,8 +5,8 @@ Pattern Tracking for Grid of Rings using Qt.
 
 **OS:** Windows 10 <br/>
 **Compiler:** VisualStudio 2017 <br/>
-**IDE:** QtCreator 4.8
-**Framework**: Qt 5.12.0
+**IDE:** QtCreator 4.8 <br/>
+**Framework**: Qt 5.12.0 <br/>
 **OpenCV:** 3.4.4
 
 ## How to Build
